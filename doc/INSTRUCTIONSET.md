@@ -222,22 +222,23 @@ Reserved
 Class 8: immediate + register byte, half word, upper half word  memory operation
 -------------------------------------------------------------------------------------------------
 
-|31 - 28 | 27 - 26 | 25 - 24 | 23 - 16 | 15 - 8 | 7 - 0  |
-|--------|---------|---------|---------|--------|--------|
-|  0x8   | x       | SIZE    |  IDX    | REG    | IMM    |
+|31 - 28 | 27 | 26 | 25 - 24 | 23 - 16 | 15 - 8 | 7 - 0  |
+|--------|----|----|---------|---------|--------|--------|
+|  0x8   | x  | LS | SIZE    |  IDX    | REG    | IMM    |
 
-	Provides bytewise and half-word-wise access. Lowest byte of a register is loaded and optionallay sign extended. 
+	Provides bytewise and half-word-wise access. Lowest byte of a register is loaded and optionally sign extended. 
 	Lowest bit of address
-	indicates byte or half-word in memory. Sign extends to 16 bit. Accesses must be aligned (else
+	indicates byte or half-word in memory. Optionally Sign extends to 32 bit on load. Accesses must be aligned (else
 	exception).
 
+    LS: 0 = load, 1 = store
     IDX: index register, holds address of memory location
     REG: destination for load
     IMM: immediate address of memory location, effective address = [IDX] + IMM
-    SIZE: 0 -> byte, zero extend
-	  1 -> half-word, zero extend
-          2 -> byte, sign extend
-          3 -> half-word, sign extend
+    SIZE: 0 -> byte, zero extend on load
+	  1 -> half-word, zero extend on load
+          2 -> byte, sign extend on load
+          3 -> half-word, sign extend on load
 
 
 Class 9: two register conditional ALU operation
@@ -281,6 +282,8 @@ Class C: immediate + register memory load
 |  0xc   |    x    |  IDX    | REG    | IMM   |
 
 
+    Effective address must be aligned
+
     IDX: index register, holds address of memory location
     REG: destination for load
     IMM: immediate address of memory location, effective address = [IDX] + IMM
@@ -292,6 +295,7 @@ Class D: immediate + register memory store
 |--------|---------|---------|--------|-------|
 |  0xd   |    x    |  IDX    | REG    | IMM   |
 
+    Effective address must be aligned
 
     IDX: index register, holds address of memory location
     REG: source for store
