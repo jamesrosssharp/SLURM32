@@ -23,8 +23,8 @@ module cpu_decode #(parameter BITS = 32, ADDRESS_BITS = 32, REGISTER_BITS = 8)
 
 always @(*)
 begin
-	regA_sel = 8'd0;	// Default: read r0 (=0)
-	regB_sel = 8'd0;    // ...
+	regA_sel = {REGISTER_BITS{1'b0}};	// Default: read r0 (=0)
+	regB_sel = {REGISTER_BITS{1'b0}};	// ...
 
 	casex (instruction)
 		INSTRUCTION_CASEX_ALUOP_REG_REG:	begin	/* alu op, reg reg */
