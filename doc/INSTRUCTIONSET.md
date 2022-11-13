@@ -203,7 +203,7 @@ Conditional move reg to reg
 
 |31 - 28 | 27 - 24 | 23 - 16 | 15 - 8 | 7 - 0  |
 |--------|---------|---------|--------|--------|
-|  0x4   |  COND   | x       | DEST   | SRC    |
+|  0x5   |  COND   | x       | DEST   | SRC    |
 
 	COND: as per branch
 	
