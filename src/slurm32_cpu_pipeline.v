@@ -40,6 +40,15 @@ module slurm32_cpu_pipeline #(
 	input load_pc_request,		/* Branch instruction */
 	input [ADDRESS_BITS - 1 : 0] load_pc_address,
 
+	input interrupt_flag_clear,
+	input interrupt_flag_set,
+
+	input memory_request_successful,	/* Memory request was successful. This means that an instruction in
+						   pipeline stage 3 issued a memory request. For a load, this means
+						   that memory data is available for writeback. For a store, this means
+						   that the data write will be committed on the next cycle */
+
+
 	/* Debugger interface */
 
 	input debugger_halt_request,	/* Debugger requests CPU halt */
@@ -64,11 +73,20 @@ reg [ADDRESS_BITS - 3 : 0] pc_stage2_r;
 reg [ADDRESS_BITS - 3 : 0] pc_stage3_r;
 reg [ADDRESS_BITS - 3 : 0] pc_stage4_r;
 
-reg interrupt_flag_r;
+reg interrupt_flag_r = 1'b1;
 
 reg [ADDRESS_BITS - 3 : 0] pc_r;
 reg [ADDRESS_BITS - 3 : 0] prev_pc_r;
  
+
+/*
+ *	Combinational logic
+ *
+ */
+
+wire stage4_is_memory = (pipeline_stage4_r[31:28] == 4'h8) || (pipeline_stage4_r[31:28] == 4'hc) || (pipeline_stage4_r[31:28] == 4'hd);
+wire mem_exception = stage4_is_memory && !memory_request_successful; 
+
 
 /*	
  *	Pipeline state machine 		
@@ -86,25 +104,36 @@ localparam st_stall2    = 4'd5;
 localparam st_stall3    = 4'd6;
 localparam st_ins_stall1 = 4'd7;
 localparam st_ins_stall2 = 4'd8;
+localparam st_mem_except = 4'd9;
 
 reg [3:0] state_r;
+reg [3:0] return_state_r;
 
 always @(posedge CLK)
 begin
-	if (RSTb == 1'b0)
+	if (RSTb == 1'b0) begin
 		state_r <= st_reset;
+		return_state_r <= st_execute;
+	end
 	else begin
 
 		case (state_r)
-			st_reset:
+			st_reset: begin
 				state_r <= st_execute;
-			st_halt:
+				return_state_r <= st_execute;
+			end
+			st_halt: begin
+				return_state_r <= st_halt;
 				if (interrupt)
 					state_r <= st_execute;
-			st_execute:
+			end
+			st_execute: begin
+				return_state_r <= st_execute;
 				// Add check here to see if instruction in slot0 is an IMM instruction
 				// to keep the pair atomic 
-				if (interrupt && interrupt_flag_r)
+				if (mem_exception)				
+					state_r <= st_mem_except;
+				else if (interrupt && interrupt_flag_r)
 					state_r <= st_interrupt;
 				else if (instruction_valid == 1'b0)
 					state_r <= st_ins_stall1;
@@ -112,20 +141,55 @@ begin
 				//	state_r <= st_stall1;
 				else if (halt_request || debugger_halt_request)
 					state_r <= st_halt; 
-			st_interrupt:
-				if (interrupt_flag_r == 1'b0)	// Interrupt flag cleared
+			end
+			st_interrupt: begin
+				return_state_r <= st_interrupt;
+		
+				if (mem_exception)
+					state_r <= st_mem_except;
+				else if (interrupt_flag_r == 1'b0)	// Interrupt flag cleared
 					state_r <= st_execute;
-			st_stall1:
-				state_r <= st_stall2;
-			st_stall2:
-				state_r <= st_stall3;
-			st_stall3:
-				state_r <= st_execute;
-			st_ins_stall1:	// This is a wait state while PC is rewound to previous value
-				state_r <= st_ins_stall2; 
-			st_ins_stall2:
-				if (instruction_valid == 1'b1)
+			end
+			st_stall1: begin
+				return_state_r <= st_execute;
+				if (mem_exception)
+					state_r <= st_mem_except;
+				else
+					state_r <= st_stall2;
+			end
+			st_stall2: begin
+				return_state_r <= st_execute;
+				if (mem_exception)
+					state_r <= st_mem_except;
+				else
+					state_r <= st_stall3;
+			end
+			st_stall3: begin
+				return_state_r <= st_execute;
+				if (mem_exception)
+					state_r <= st_mem_except;
+				else
 					state_r <= st_execute;
+			end
+			st_ins_stall1: begin	// This is a wait state while PC is rewound to previous value
+
+				if (mem_exception)
+					state_r <= st_mem_except;
+				else
+					state_r <= st_ins_stall2;
+				return_state_r <= st_execute;
+
+			end
+			st_ins_stall2: begin
+				return_state_r <= st_execute;
+				
+				if (mem_exception)
+					state_r <= st_mem_except;
+				else if (instruction_valid == 1'b1)
+					state_r <= st_execute;
+			end
+			st_mem_except:	 /* we clear pipeline in this state and get ready to refetch from failing instruction */
+				state_r <= return_state_r;
 			default:
 				state_r <= st_reset;			
 
@@ -151,13 +215,27 @@ begin
 		end
 		st_halt:	;
 		st_execute: begin
-			pc_r <= pc_r + 1;
-			prev_pc_r <= pc_r;
+			if (mem_exception) begin
+				pc_r <= pc_stage4_r;
+				prev_pc_r <= pc_stage4_r;
+			end else begin
+				pc_r <= pc_r + 1;
+				prev_pc_r <= pc_r;
+			end
 		end
-		st_interrupt:	;
+		st_interrupt:	
+			if (mem_exception) begin
+				pc_r <= pc_stage4_r;
+				prev_pc_r <= pc_stage4_r;	
+			end
 		st_stall1, st_stall2, st_stall3, st_ins_stall1:
-			pc_r <= prev_pc_r;
+			if (mem_exception) begin
+				pc_r <= pc_stage4_r;
+				prev_pc_r <= pc_stage4_r;
+			end else
+				pc_r <= prev_pc_r;
 		st_ins_stall2:;
+		st_mem_except:;
 		default:;
 	endcase
 end
@@ -186,8 +264,9 @@ begin
 		st_interrupt:
 			// Emit interrupt instruction
 			pipeline_stage0_r <= {28'h0500000, irq};  
-		st_stall1, st_stall2, st_stall3, st_ins_stall1:
-			pipeline_stage0_r <= NOP_INSTRUCTION;	
+		st_stall1, st_stall2, st_stall3, st_ins_stall1, st_mem_except:
+			pipeline_stage0_r <= NOP_INSTRUCTION;
+			
 		default:	;
 	endcase
 
@@ -211,6 +290,8 @@ begin
 			pc_stage1_r <= pc_stage0_r;
 		end
 		st_halt, st_stall1, st_stall2, st_stall3: ;
+		st_mem_except:
+			pipeline_stage1_r <= NOP_INSTRUCTION;
 		default:;
 	endcase
 end
@@ -237,6 +318,8 @@ begin
 			pc_stage2_r <= pc_stage1_r;
 		end
 		st_halt:;
+		st_mem_except:
+			pipeline_stage2_r <= NOP_INSTRUCTION;
 		default:;
 	endcase
 end
@@ -259,6 +342,8 @@ begin
 			pc_stage3_r <= pc_stage2_r;
 		end
 		st_halt:;
+		st_mem_except:
+			pipeline_stage3_r <= NOP_INSTRUCTION;
 		default:;
 	endcase
 end
@@ -281,11 +366,23 @@ begin
 			pc_stage4_r <= pc_stage3_r;
 		end
 		st_halt:;
+		st_mem_except:
+			pipeline_stage4_r <= NOP_INSTRUCTION;
 		default:;
 	endcase
 end
 
+/* interrupt flag */
 
+always @(posedge CLK)
+begin
+	if (RSTb == 1'b0)
+		interrupt_flag_r <= 1'b0;
+	else if (interrupt_flag_set == 1'b1)
+		interrupt_flag_r <= 1'b1;
+	else if (interrupt_flag_clear == 1'b1)
+		interrupt_flag_r <= 1'b0;
+end
 
 /* 
  *
@@ -318,8 +415,11 @@ begin
 			ascii_state = "istall1";
 		st_ins_stall2:
 			ascii_state = "istall2";
+		st_mem_except:
+			ascii_state = "memexcpt";
 	endcase
 end
+
 
 `include "slurm32_debug_functions.v"
 

@@ -33,6 +33,10 @@ reg debugger_halt_request = 1'b0;
 reg debugger_load_pc_request = 1'b0;
 reg [31:0] debugger_load_pc_address = 32'h00000000;
 
+reg interrupt_flag_clear = 1'b0;
+reg interrupt_flag_set = 1'b0;
+
+reg memory_request_successful = 1'b1;
 
 slurm32_cpu_pipeline pip0 (
 	CLK,
@@ -63,6 +67,11 @@ slurm32_cpu_pipeline pip0 (
 	load_pc_request,		/* Branch instruction */
 	load_pc_address,
 
+	interrupt_flag_clear,
+	interrupt_flag_set,
+
+	memory_request_successful,	
+
 	/* Debugger interface */
 
 	debugger_halt_request,	/* Debugger requests CPU halt */
@@ -78,12 +87,33 @@ initial begin
 	#100 instruction_in <= 32'h21030405;	
 	#100 instruction_valid <= 1'b0;
 	#300 instruction_valid <= 1'b1;
+	#100 interrupt_flag_set <= 1'b1;
+	#100 interrupt <= 1'b1;
+	     interrupt_flag_set <= 1'b0;
+	#300 interrupt_flag_clear <= 1'b1;
+	#400 interrupt_flag_clear <= 1'b0;
+	#500 interrupt <= 1'b0;
+	#100 instruction_in <= 32'hc0000000;
+		memory_request_successful <= 1'b0;
+	#800 interrupt_flag_set <= 1'b1;
+	#100 interrupt <= 1'b1;
+	     interrupt_flag_set <= 1'b0;
+	#300 interrupt_flag_clear <= 1'b1;
+	#400 interrupt_flag_clear <= 1'b0;
+	
+	// Cases to test:
+	// 1. Instruction cache miss
+	// 2. Instruction cache miss while memory exception
+	// 3. Halt while memory exception
+	// 4. Interrupt while memory exception
+	// 5. Interrupt
+
 end
 
 initial begin
 	$dumpfile("dump.vcd");
 	$dumpvars(0, tb);
-	# 2000 $finish;
+	# 5000 $finish;
 end
 
 endmodule
