@@ -77,7 +77,14 @@ reg interrupt_flag_r = 1'b1;
 
 reg [ADDRESS_BITS - 3 : 0] pc_r;
 reg [ADDRESS_BITS - 3 : 0] prev_pc_r;
- 
+
+/* These flags are used to "mark" instructions as nop instructions */ 
+reg nop_stage0_r;	  
+reg nop_stage1_r;  
+reg nop_stage2_r;  
+reg nop_stage3_r;  
+reg nop_stage4_r;  
+
 
 /*
  *	Combinational logic
@@ -85,7 +92,7 @@ reg [ADDRESS_BITS - 3 : 0] prev_pc_r;
  */
 
 wire stage4_is_memory = (pipeline_stage4_r[31:28] == 4'h8) || (pipeline_stage4_r[31:28] == 4'hc) || (pipeline_stage4_r[31:28] == 4'hd);
-wire mem_exception = stage4_is_memory && !memory_request_successful; 
+wire mem_exception = stage4_is_memory && !memory_request_successful && !nop_stage4_r; 
 
 
 /*	
@@ -147,7 +154,7 @@ begin
 		
 				if (mem_exception)
 					state_r <= st_mem_except;
-				else if (interrupt_flag_r == 1'b0)	// Interrupt flag cleared
+				else if (pipeline_stage4_r[31:24] == 8'h05)
 					state_r <= st_execute;
 			end
 			st_stall1: begin
@@ -252,21 +259,26 @@ begin
 		st_reset: begin
 			pipeline_stage0_r <= NOP_INSTRUCTION;
 			pc_stage0_r <= {ADDRESS_BITS{1'b0}};
+			nop_stage0_r <= 1'b0;
 		end
 		st_halt:;
 		st_ins_stall2, st_execute: begin
-			if (instruction_valid)
-				pipeline_stage0_r <= instruction_in; 
+			pipeline_stage0_r <= instruction_in;
+			if (instruction_valid) 
+				nop_stage0_r <= 1'b0;
 			else
-				pipeline_stage0_r <= NOP_INSTRUCTION;
+				nop_stage0_r <= 1'b1;
 			pc_stage0_r <= pc_r;
 		end
-		st_interrupt:
+		st_interrupt: begin
 			// Emit interrupt instruction
 			pipeline_stage0_r <= {28'h0500000, irq};  
-		st_stall1, st_stall2, st_stall3, st_ins_stall1, st_mem_except:
-			pipeline_stage0_r <= NOP_INSTRUCTION;
-			
+			nop_stage0_r <= 1'b0;
+		end
+		st_stall1, st_stall2, st_stall3, st_ins_stall1, st_mem_except: begin
+			pipeline_stage0_r <= instruction_in;
+			nop_stage0_r <= 1'b1;
+		end	
 		default:	;
 	endcase
 
@@ -284,14 +296,16 @@ begin
 		st_reset: begin
 			pipeline_stage1_r <= NOP_INSTRUCTION;	
 			pc_stage1_r <= {ADDRESS_BITS{1'b0}};
+			nop_stage1_r <= 1'b0;
 		end
 		st_ins_stall2, st_ins_stall1, st_interrupt, st_execute: begin
 			pipeline_stage1_r <= pipeline_stage0_r;
 			pc_stage1_r <= pc_stage0_r;
+			nop_stage1_r <= nop_stage0_r;
 		end
 		st_halt, st_stall1, st_stall2, st_stall3: ;
 		st_mem_except:
-			pipeline_stage1_r <= NOP_INSTRUCTION;
+			nop_stage1_r <= 1'b1;
 		default:;
 	endcase
 end
@@ -308,18 +322,24 @@ begin
 		st_reset: begin
 			pipeline_stage2_r <= NOP_INSTRUCTION;
 			pc_stage2_r <= {ADDRESS_BITS{1'b0}};
+			nop_stage2_r <= 1'b0;
 		end
 		st_ins_stall2, st_ins_stall1, st_interrupt, st_execute: begin
 			pipeline_stage2_r <= pipeline_stage1_r;
 			pc_stage2_r <= pc_stage1_r;
+			nop_stage2_r <= nop_stage1_r;
 		end
 		st_stall1, st_stall2, st_stall3: begin
-			pipeline_stage2_r <= NOP_INSTRUCTION;
+			pipeline_stage2_r <= pipeline_stage1_r;
 			pc_stage2_r <= pc_stage1_r;
+			nop_stage2_r <= 1'b1;
 		end
 		st_halt:;
-		st_mem_except:
-			pipeline_stage2_r <= NOP_INSTRUCTION;
+		st_mem_except: begin
+			nop_stage2_r <= 1'b1;
+			pipeline_stage2_r <= pipeline_stage1_r;
+			pc_stage2_r <= pc_stage1_r;
+		end
 		default:;
 	endcase
 end
@@ -336,14 +356,19 @@ begin
 		st_reset: begin
 			pipeline_stage3_r <= NOP_INSTRUCTION;
 			pc_stage3_r <= {ADDRESS_BITS{1'b0}};
+			nop_stage3_r <= 1'b0;
 		end
 		st_stall1, st_stall2, st_stall3, st_ins_stall2, st_ins_stall1, st_interrupt, st_execute: begin
 			pipeline_stage3_r <= pipeline_stage2_r;
 			pc_stage3_r <= pc_stage2_r;
+			nop_stage3_r <= nop_stage2_r;
 		end
 		st_halt:;
-		st_mem_except:
-			pipeline_stage3_r <= NOP_INSTRUCTION;
+		st_mem_except: begin
+			nop_stage3_r <= 1'b1;
+			pipeline_stage3_r <= pipeline_stage2_r;
+			pc_stage3_r <= pc_stage2_r;
+		end
 		default:;
 	endcase
 end
@@ -360,14 +385,19 @@ begin
 		st_reset: begin
 			pipeline_stage4_r <= NOP_INSTRUCTION;
 			pc_stage4_r <= {ADDRESS_BITS{1'b0}};
+			nop_stage4_r <= 1'b0;
 		end
 		st_stall1, st_stall2, st_stall3, st_ins_stall2, st_ins_stall1, st_interrupt, st_execute: begin
 			pipeline_stage4_r <= pipeline_stage3_r;
 			pc_stage4_r <= pc_stage3_r;
+			nop_stage4_r <= nop_stage3_r;
 		end
 		st_halt:;
-		st_mem_except:
-			pipeline_stage4_r <= NOP_INSTRUCTION;
+		st_mem_except: begin
+			nop_stage4_r <= 1'b1;
+			pipeline_stage4_r <= pipeline_stage3_r;
+			pc_stage4_r <= pc_stage3_r;
+		end
 		default:;
 	endcase
 end
@@ -431,11 +461,32 @@ reg [63:0] ascii_instruction4;
 
 always @(*)
 begin
-	ascii_instruction0 = disassemble(pipeline_stage0_r);
-	ascii_instruction1 = disassemble(pipeline_stage1_r);
-	ascii_instruction2 = disassemble(pipeline_stage2_r);
-	ascii_instruction3 = disassemble(pipeline_stage3_r);
-	ascii_instruction4 = disassemble(pipeline_stage4_r);
+	if (nop_stage0_r)
+		ascii_instruction0 = "*nop";
+	else
+		ascii_instruction0 = disassemble(pipeline_stage0_r);
+
+	if (nop_stage1_r)
+		ascii_instruction1 = "*nop";
+	else
+		ascii_instruction1 = disassemble(pipeline_stage1_r);
+
+	if (nop_stage2_r)
+		ascii_instruction2 = "*nop";
+	else
+		ascii_instruction2 = disassemble(pipeline_stage2_r);
+	
+
+	if (nop_stage3_r)
+		ascii_instruction3 = "*nop";
+	else
+		ascii_instruction3 = disassemble(pipeline_stage3_r);
+		
+	if (nop_stage4_r)
+		ascii_instruction4 = "*nop";
+	else
+		ascii_instruction4 = disassemble(pipeline_stage4_r);
+
 end
 
 `endif
