@@ -110,6 +110,18 @@ reg interrupt_flag_r = 1'b1;
 reg [ADDRESS_BITS - 3 : 0] pc_r;
 reg [ADDRESS_BITS - 3 : 0] prev_pc_r;
 
+reg [IMM_BITS - 1 : 0] imm_r;
+
+/*
+ *	
+ *	Shadow copy of imm_r and flags for interrupt context	
+ *
+ */
+
+reg [IMM_BITS - 1 : 0] int_imm_r;
+
+
+
 /*
  *	Combinational logic
  *
@@ -117,6 +129,25 @@ reg [ADDRESS_BITS - 3 : 0] prev_pc_r;
 
 wire stage4_is_memory = (pip4[INS_MSB:INS_MSB - 4] == 4'h8) || (pip4[INS_MSB:INS_MSB - 4] == 4'hc) || (pip4[INS_MSB:INS_MSB - 4] == 4'hd);
 wire mem_exception = stage4_is_memory && !memory_request_successful && !pip4[NOP_BIT]; 
+
+reg [ADDRESS_BITS - 3 : 0] interrupt_return_pc;
+
+always @(*)
+begin
+	if (pip4[NOP_BIT] == 1'b0)
+		interrupt_return_pc = pip4[PC_MSB : PC_LSB];
+	else if (pip3[NOP_BIT] == 1'b0)
+		interrupt_return_pc = pip3[PC_MSB : PC_LSB];
+	else if (pip2[NOP_BIT] == 1'b0)
+		interrupt_return_pc = pip2[PC_MSB : PC_LSB];
+	else if (pip1[NOP_BIT] == 1'b0)
+		interrupt_return_pc = pip1[PC_MSB : PC_LSB];
+	else if (pip0[NOP_BIT] == 1'b0)
+		interrupt_return_pc = pip0[PC_MSB : PC_LSB];
+	else
+		interrupt_return_pc = pc_r;
+end
+
 
 
 /*	
@@ -136,7 +167,7 @@ localparam st_stall3    = 4'd6;
 localparam st_ins_stall1 = 4'd7;
 localparam st_ins_stall2 = 4'd8;
 localparam st_mem_except1 = 4'd9;
-localparam st_mem_except2 = 4'd9;
+localparam st_mem_except2 = 4'd10;
 
 
 reg [3:0] state_r;
@@ -179,7 +210,7 @@ begin
 					state_r <= st_halt; 
 			end
 			st_interrupt: begin
-		
+				state_r <= st_execute;	
 			end
 			st_stall1: begin
 				if (mem_exception)
@@ -243,13 +274,13 @@ begin
 			pc_r <= pc_r + 1;
 			prev_pc_r <= pc_r;
 		end
-		st_interrupt:	;
-		
-
+		st_interrupt: 	
+			pc_r <= {irq,1'b0};
 		st_stall1, st_stall2, st_stall3, st_ins_stall1:
-				pc_r <= prev_pc_r;
+			pc_r <= prev_pc_r;
 		st_ins_stall2:;
-		st_mem_except1:;
+		st_mem_except1:
+			pc_r <= pip5[PC_MSB:PC_LSB]; 
 		st_mem_except2:;
 		default:;
 	endcase
@@ -292,12 +323,14 @@ begin
 	// In every state except st_stall{x} we advance pip1
 	case (state_r)
 		st_stall1, st_stall2, st_stall3:	;	// Hold instruction in the slot
-		default:
+		default: begin
 			pip1[PC_MSB : INS_LSB] <= pip0[PC_MSB : INS_LSB];
+			pip1[IMM_MSB : IMM_LSB] <= imm_r;
+		end
 	endcase
 
 	// TODO: Fill in hazard bits and imm register
-	pip1[HAZ_FLAG_BIT : IMM_LSB] <= {(IMM_BITS + HAZ_REG_BITS + HAZ_FLAG_BITS){1'b0}};
+	pip1[HAZ_FLAG_BIT : HAZ_REG_LSB] <= {(HAZ_REG_BITS + HAZ_FLAG_BITS){1'b0}};
 
 	// We nop out pip1 in st_reset, st_halt, st_interrupt, st_mem_except1
 	case (state_r)
@@ -376,10 +409,37 @@ end
 always @(posedge CLK)
 begin
 	pip5 <= pip4;
+	pip5[HAZ_FLAG_BIT : HAZ_REG_LSB] <= {(HAZ_REG_BITS + HAZ_FLAG_BITS){1'b0}};
 end
 
 
+/*
+ *
+ *	imm reg
+ *
+ *
+ */
+always @(posedge CLK)
+begin
+	if (RSTb == 1'b0) begin
+		imm_r <= {IMM_BITS{1'b0}};
+	end
+	else begin
+		// In mem except1, reload the imm reg from the faulting instruction
+		if (state == st_mem_except1)
+			imm_r <= pip5[IMM_MSB:IMM_LSB];
+		// Else if we have an iret, reload the imm reg
+		else if (pip1[INS_MSB:INS_LSB] == 32'h01000001)
+			imm_r <= int_imm_r; 
+		// If there is an un-NOP'ed imm instruction in slot 1, set imm reg
+		else if (pip1[INS_MSB:INS_MSB - 4] == 4'h1 && pip1[NOP_BIT] == 1'b0)
+			imm_r <= pip1[INS_MSB - 4: INS_LSB];
+		// Else if the instruction is not a nop, clear the imm register
+		else if (pip1 != NOP_INSTRUCTION && pip1[NOP_BIT] == 1'b0)
+			imm_r <= {IMM_BITS{1'b0}};		
 
+	end
+end
 
 
 /* interrupt flag */
@@ -393,6 +453,12 @@ begin
 	else if (interrupt_flag_clear == 1'b1)
 		interrupt_flag_r <= 1'b0;
 end
+
+
+
+
+
+
 
 /* 
  *
