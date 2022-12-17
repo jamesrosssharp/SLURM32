@@ -12,6 +12,8 @@ localparam LINK_REGISTER   		= 8'd31;
 localparam INTERRUPT_LINK_REGISTER   	= 8'd31;
 localparam R0 				= {REGISTER_BITS{1'b0}};
 
+localparam IRET_INSTRUCTION		= 32'h01000001;
+
 localparam INSTRUCTION_CASEX_NOP			= NOP_INSTRUCTION;
 localparam INSTRUCTION_CASEX_RET_IRET			= 32'h01xxxxxx;
 localparam INSTRUCTION_CASEX_ALUOP_SINGLE_REG		= 32'h04xxxxxx;
