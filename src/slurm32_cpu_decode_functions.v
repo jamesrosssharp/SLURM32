@@ -20,7 +20,7 @@ endfunction
 function [7:0] reg_src_from_ins;
 input [31:0] ins;
 begin
-	reg_src1_from_ins = ins[15:8];
+	reg_src_from_ins = ins[15:8];
 end
 endfunction
 
@@ -28,6 +28,20 @@ function [7:0] reg_src2_from_ins;
 input [31:0] ins;
 begin
 	reg_src2_from_ins = ins[7:0];
+end
+endfunction
+
+function [7:0] reg_dest_from_ins;
+input [31:0] ins;
+begin
+	reg_dest_from_ins = ins[23:16];
+end
+endfunction
+
+function [7:0] reg_branch_ind_from_ins;
+input [31:0] ins;
+begin
+	reg_branch_ind_from_ins = ins[15:8];
 end
 endfunction
 

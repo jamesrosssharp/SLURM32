@@ -9,7 +9,7 @@
 
 localparam NOP_INSTRUCTION 		= {BITS{1'b0}};
 localparam LINK_REGISTER   		= 8'd31;
-localparam INTERRUPT_LINK_REGISTER   	= 8'd31;
+localparam INTERRUPT_LINK_REGISTER   	= 8'd30;
 localparam R0 				= {REGISTER_BITS{1'b0}};
 
 localparam IRET_INSTRUCTION		= 32'h01000001;
@@ -24,7 +24,6 @@ localparam INSTRUCTION_CASEX_IMM			= 32'h1xxxxxxx;
 localparam INSTRUCTION_CASEX_ALUOP_REG_REG		= 32'h2xxxxxxx;
 localparam INSTRUCTION_CASEX_ALUOP_REG_IMM		= 32'h3xxxxxxx;
 localparam INSTRUCTION_CASEX_BRANCH			= 32'h4xxxxxxx;
-localparam INSTRUCTION_CASEX_COND_MOV			= 32'h5xxxxxxx;
 localparam INSTRUCTION_CASEX_BYTE_HALFWORD_LOAD_STORE	= 32'h8xxxxxxx;
 localparam INSTRUCTION_CASEX_TWO_REG_COND_ALU		= 32'h9xxxxxxx;
 localparam INSTRUCTION_CASEX_LOAD			= 32'hcxxxxxxx;

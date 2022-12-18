@@ -111,31 +111,31 @@ Class 2: Register to register ALU operation
 
 |31 - 28 | 27 - 24 | 23 - 16 | 15 - 8 | 7 - 0 |
 |--------|---------|---------|--------|-------|
-|  0x2   |  ALU OP | DEST    | SRC1   | SRC2  |
+|  0x2   |  ALU OP | DEST    | SRC    | SRC2  |
 
 
 
 
     ALU OP: 4 bits ALU operation
         0 - mov : DEST <- SRC2
-        1 - add : DEST <- SRC1 + SRC2
-        2 - adc : DEST <- SRC1 + SRC2 + Carry
-        3 - sub : DEST <- SRC1 - SRC2
-        4 - sbb : DEST <- SRC1 - SRC2 - Carry
-        5 - and : DEST <- SRC1 & SRC2
-        6 - or  : DEST <- SRC1 | SRC2
-        7 - xor : DEST <- SRC1 ^ SRC2
-    	8 - mul : DEST <- SRC1 * SRC2 (LO)
-        9 - mulu : DEST <- SRC1 * SRC2 (HI)
+        1 - add : DEST <- SRC + SRC2
+        2 - adc : DEST <- SRC + SRC2 + Carry
+        3 - sub : DEST <- SRC - SRC2
+        4 - sbb : DEST <- SRC - SRC2 - Carry
+        5 - and : DEST <- SRC & SRC2
+        6 - or  : DEST <- SRC | SRC2
+        7 - xor : DEST <- SRC ^ SRC2
+    	8 - mul : DEST <- SRC * SRC2 (LO)
+        9 - mulu : DEST <- SRC * SRC2 (HI)
         10: - rrn : rotate nibble right
 	11: - rln : rotate nibble left
         12: cmp 
         13: test
-        14 - umulu : DEST <- (UNSIGNED) SRC1 * (UNSIGNED) SRC2 (HI) 
+        14 - umulu : DEST <- (UNSIGNED) SRC * (UNSIGNED) SRC2 (HI) 
         15 - bswap : DEST <- bytes swapped SRC2
  
         DEST: destination
-        SRC1: first operand (alu A input)
+        SRC: first operand (alu A input)
 	SRC2: second operand (alu B input) 
 
 Class 3: immediate to register ALU operation
@@ -199,19 +199,12 @@ Class 4: branch operation
 Class 5:
 -------- 
 
-Conditional move reg to reg
-
-|31 - 28 | 27 - 24 | 23 - 16 | 15 - 8 | 7 - 0  |
-|--------|---------|---------|--------|--------|
-|  0x5   |  COND   | x       | DEST   | SRC    |
-
-	COND: as per branch
-	
-	if COND, DEST <= SRC
-
+Reserved
 
 Class 6:
 --------
+
+Reserved
   
 Class 7:
 --------
@@ -224,7 +217,7 @@ Class 8: immediate + register byte, half word, upper half word  memory operation
 
 |31 - 28 | 27 | 26 | 25 - 24 | 23 - 16 | 15 - 8 | 7 - 0  |
 |--------|----|----|---------|---------|--------|--------|
-|  0x8   | x  | LS | SIZE    |  IDX    | REG    | IMM    |
+|  0x8   | x  | LS | SIZE    |  REG    | IDX    | IMM    |
 
 	Provides bytewise and half-word-wise access. Lowest byte of a register is loaded and optionally sign extended. 
 	Lowest bit of address
@@ -244,9 +237,9 @@ Class 8: immediate + register byte, half word, upper half word  memory operation
 Class 9: two register conditional ALU operation
 -------------------------------------------------
 
-|31 - 28 | 27 - 24 | 23 - 20| 19 - 16 | 15 - 8 | 7 - 0 |
-|--------|---------|--------|---------|--------|-------|
-|  0x9   |  ALU OP |   x    |  COND   | DEST   | SRC   |
+|31 - 28 | 27 - 24 | 23 - 16 | 15 - 8 | 7 - 4 | 3 - 0 |
+|--------|---------|---------|--------|-------|-------|
+|  0x9   |  ALU OP |  DEST   |   SRC  |   x   | COND  |
 
     ALU OP: 4 bits ALU operation
         0 - mov : DEST <- SRC
@@ -279,7 +272,7 @@ Class C: immediate + register memory load
 
 |31 - 28 | 27 - 24 | 23 - 16 | 15 - 8 | 7 - 0 |
 |--------|---------|---------|--------|-------|
-|  0xc   |    x    |  IDX    | REG    | IMM   |
+|  0xc   |    x    |  REG    | IDX    | IMM   |
 
 
     Effective address must be aligned
@@ -293,7 +286,7 @@ Class D: immediate + register memory store
 
 |31 - 28 | 27 - 24 | 23 - 16 | 15 - 8 | 7 - 0 |
 |--------|---------|---------|--------|-------|
-|  0xd   |    x    |  IDX    | REG    | IMM   |
+|  0xd   |    x    |  REG    | IDX    | IMM   |
 
     Effective address must be aligned
 
