@@ -60,6 +60,7 @@ begin
 			end
 			INSTRUCTION_CASEX_TWO_REG_COND_ALU: begin
 				if (cond_pass == 1'b1) begin
+					/* write back to "src" register */
 					reg_wr_sel = reg_src_from_ins(instruction);
 					reg_out = aluOut;	
 				end

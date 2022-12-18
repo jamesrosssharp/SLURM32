@@ -45,7 +45,7 @@ begin
                 end
                 INSTRUCTION_CASEX_COND_MOV, INSTRUCTION_CASEX_ALUOP_REG_REG, INSTRUCTION_CASEX_ALUOP_REG_IMM: begin /* alu op */
                         case (alu_op_from_ins(instruction))
-                                5'd12, 5'd13:;
+                                ALU5_CMP, ALU5_TST ;	/* these do not modify the register, so no hazard */
                                 default:
                                         hazard_reg0_r   = reg_dest_from_ins(instruction);
                         endcase
@@ -55,17 +55,32 @@ begin
                                 hazard_reg0_r   = LINK_REGISTER; /* link register */
                         end
                 end
-                INSTRUCTION_CASEX_BYTE_HALFWORD_LOAD_STORE, INSTRUCTION_CASEX_LOAD_STORE:     begin /* load store */
-                        if (is_load_store_from_ins(instruction) == 1'b0) begin /* load */
-                                // write back value 
-                                hazard_reg0_r = reg_dest_from_ins(instruction);
-                        end
-                end
                 INSTRUCTION_CASEX_TWO_REG_COND_ALU: begin
-                        hazard_reg0_r   = reg_dest_from_ins(instruction);
+			/* two reg cond alu uses src and src2 registers, and writes back to src */
+                        hazard_reg0_r   = reg_src_from_ins(instruction);
                 end
 		default: ;
         endcase
 end
+
+// Determine flag hazards to propagate
+
+always @(*)
+begin
+
+	modifies_flags0_r = 1'b0;
+
+	casex (instruction)
+		/* TODO: Finer grained determination of hazards here */
+		INSTRUCTION_CASEX_ALUOP_SINGLE_REG,
+		INSTRUCTION_CASEX_ALUOP_REG_REG, INSTRUCTION_CASEX_ALUOP_REG_IMM: begin /* alu op */
+			modifies_flags0_r = 1'b1;
+		end
+		default: ;
+	endcase
+end
+
+
+
 
 endmodule
