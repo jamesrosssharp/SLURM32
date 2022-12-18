@@ -73,7 +73,7 @@ module slurm32_cpu_pipeline #(
 	input [3:0] irq,		/* IRQ from interrupt controller */ 
 
 	input load_pc_request,		/* Branch instruction */
-	input [ADDRESS_BITS - 3 : 0] load_pc_address,
+	input [ADDRESS_BITS - 1 : 0] load_pc_address,
 
 	input interrupt_flag_clear,
 	input interrupt_flag_set,
@@ -86,7 +86,6 @@ module slurm32_cpu_pipeline #(
 	input is_mem_request, 			/* execute stage logic will determine if the instruction is a memory request */
 	input cond_pass_in,			/* conditional evaluates to true or false in execute stage */
 
-	output [ADDRESS_BITS - 3 : 0] return_address,
 	output load_return_address,
 
 	output cond_pass_stage4
@@ -220,7 +219,7 @@ assign pipeline_stage_2 = pip2[INS_MSB : INS_LSB];
 assign pipeline_stage_3 = pip3[INS_MSB : INS_LSB];
 assign pipeline_stage_4 = pip4[INS_MSB : INS_LSB];
 
-assign pc_stage_4 = pip4[PC_MSB : PC_LSB];
+assign pc_stage_4 = {pip4[PC_MSB : PC_LSB], 2'b00};
 
 assign hazard_reg1 = pip1[HAZ_REG_MSB:HAZ_REG_LSB]; 
 assign hazard_reg2 = pip2[HAZ_REG_MSB:HAZ_REG_LSB];
@@ -229,7 +228,6 @@ assign modifies_flags1 = pip1[HAZ_FLAG_BIT];
 assign modifies_flags2 = pip2[HAZ_FLAG_BIT];
 assign modifies_flags3 = pip3[HAZ_FLAG_BIT];
 
-assign return_address = pip4[PC_MSB:PC_LSB];
 assign load_return_address = (state_r == st_interrupt);
 
 assign cond_pass_stage4 = pip4[COND_PASS_BIT];
@@ -359,12 +357,12 @@ begin
 		end
 		st_halt:	
 			if (load_pc_request == 1'b1) begin
-				pc_r <= load_pc_address;
+				pc_r <= load_pc_address[ADDRESS_BITS - 1 : 2];
 			end 
 		st_execute: begin
 			if (load_pc_request == 1'b1) begin
 				prev_pc_r <= pc_r;			
-				pc_r <= load_pc_address;
+				pc_r <= load_pc_address[ADDRESS_BITS - 1 : 2];
 			end else begin
 				pc_r <= pc_r + 1;
 				prev_pc_r <= pc_r;
@@ -374,12 +372,12 @@ begin
 			pc_r <= {irq,1'b0};
 		st_stall1, st_stall2, st_stall3, st_ins_stall1:
 			if (load_pc_request == 1'b1) begin
-				pc_r <= load_pc_address;
+				pc_r <= load_pc_address[ADDRESS_BITS - 1 : 2];
 			end else 
 				pc_r <= prev_pc_r;
 		st_ins_stall2:
 			if (load_pc_request == 1'b1) begin
-				pc_r <= load_pc_address;
+				pc_r <= load_pc_address[ADDRESS_BITS - 1 : 2];
 			end 
 		st_mem_except1:
 			pc_r <= pip5[PC_MSB:PC_LSB]; 

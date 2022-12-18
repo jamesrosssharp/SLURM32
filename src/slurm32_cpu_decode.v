@@ -56,6 +56,4 @@ begin
 	endcase
 end
 
-
-
 endmodule
