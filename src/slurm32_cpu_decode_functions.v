@@ -7,6 +7,8 @@
  *
  */
 
+`include "slurm32_cpu_defs.v"
+
 /* verilator lint_off UNUSED */
 function [4:0] alu_op_from_ins;
 input [31:0] ins;
@@ -15,7 +17,7 @@ begin
 end
 endfunction
 
-function [7:0] reg_src1_from_ins;
+function [7:0] reg_src_from_ins;
 input [31:0] ins;
 begin
 	reg_src1_from_ins = ins[15:8];
