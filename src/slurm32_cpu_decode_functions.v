@@ -52,7 +52,20 @@ end
 endfunction
 
 function is_ret_or_iret;
-input [15:0] ins;
+input [31:0] ins;
 		is_ret_or_iret = ins[0];	// 1 = iret, 0 = ret
 endfunction
+
+function uses_flags_for_branch;
+input [31:0] ins;
+begin
+	case(ins[27:24])
+		COND_A,  COND_L:
+			uses_flags_for_branch = 1'b0;
+		default:
+			uses_flags_for_branch = 1'b1;
+	endcase
+end
+endfunction
+
 
