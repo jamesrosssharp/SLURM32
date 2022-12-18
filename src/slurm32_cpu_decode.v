@@ -7,7 +7,7 @@
  *
  */
 
-module cpu_decode #(parameter BITS = 32, ADDRESS_BITS = 32, REGISTER_BITS = 8)
+module slurm32_cpu_decode #(parameter BITS = 32, ADDRESS_BITS = 32, REGISTER_BITS = 8)
 (
 	input CLK,
 	input RSTb,
@@ -40,14 +40,14 @@ begin
 			regB_sel	= reg_src2_from_ins(instruction);
 		end
 		INSTRUCTION_CASEX_TWO_REG_COND_ALU:	begin	/* alu op, cond reg reg */
-			regARdAddr_r	= reg_dest_from_ins(instruction);
-			regBRdAddr_r	= reg_src2_from_ins(instruction);
+			regA_sel	= reg_src_from_ins(instruction);
+			regB_sel	= reg_src2_from_ins(instruction);
 		end
 		INSTRUCTION_CASEX_ALUOP_REG_IMM:	begin	/* alu op, reg imm */
-			regARdAddr_r 		= reg_src_from_ins(instruction);
+			regA_sel 	= reg_src_from_ins(instruction);
 		end
 		INSTRUCTION_CASEX_BRANCH:	begin /* branch */
-			regARdAddr_r	= reg_branch_ind_from_ins(instruction);
+			regA_sel	= reg_branch_ind_from_ins(instruction);
 		end
 		/* TODO : MEMORY ACCESSS INSTRUCTIONS HERE */
 

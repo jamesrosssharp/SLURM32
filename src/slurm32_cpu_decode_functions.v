@@ -45,4 +45,8 @@ begin
 end
 endfunction
 
+function is_ret_or_iret;
+input [15:0] ins;
+		is_ret_or_iret = ins[0];	// 1 = iret, 0 = ret
+endfunction
 

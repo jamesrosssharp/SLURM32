@@ -237,9 +237,9 @@ Class 8: immediate + register byte, half word, upper half word  memory operation
 Class 9: two register conditional ALU operation
 -------------------------------------------------
 
-|31 - 28 | 27 - 24 | 23 - 16 | 15 - 8 | 7 - 4 | 3 - 0 |
-|--------|---------|---------|--------|-------|-------|
-|  0x9   |  ALU OP |  DEST   |   SRC  |   x   | COND  |
+|31 - 28 | 27 - 24 | 23 - 20 | 19 - 16 | 15 - 8 | 7 - 0 |
+|--------|---------|---------|---------|--------|-------|
+|  0x9   |  ALU OP | X       |  COND   |  DEST  | SRC2  |
 
     ALU OP: 4 bits ALU operation
         0 - mov : DEST <- SRC
