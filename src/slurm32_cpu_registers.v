@@ -17,8 +17,7 @@ module slurm32_cpu_registers
 	input [REG_BITS - 1 : 0] regOutB_sel,	
 	output [BITS - 1 : 0] regOutA_data,
 	output [BITS - 1 : 0] regOutB_data,
-	input  [BITS - 1 : 0] regIn_data,
-	input is_executing
+	input  [BITS - 1 : 0] regIn_data
 );
 
 reg [BITS - 1: 0] outA;
@@ -35,18 +34,14 @@ begin
 	regFileA[regIn_sel] <= regIn_data;
 	regFileB[regIn_sel] <= regIn_data;
 
-	if (is_executing) begin
-		if (regOutA == 4'd0)
-			outA <= 16'h0;
-		else
-			outA <= regFileA[regOutA_sel];
+	if (regOutA_sel == 4'd0)
+		outA <= 16'h0;
+	else
+		outA <= regFileA[regOutA_sel];
 
-		if (regOutB == 4'd0)
-			outB <= 16'h0;	
-		else
-			outB <= regFileB[regOutB_sel];
+	if (regOutB_sel == 4'd0)
+		outB <= 16'h0;	
+	else
+		outB <= regFileB[regOutB_sel];
 	end
-end
-
-
 endmodule

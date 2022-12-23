@@ -34,6 +34,8 @@ module slurm32_cpu_pipeline #(
 	output nop_stage_2, /* tell execute stage not to change any state (or request mem) */
 	output nop_stage_4, /* do not write back */
 
+	output [23:0] imm_reg,
+
 	/* Flags input / output */
 
 	input Z_in,
@@ -114,6 +116,8 @@ localparam FLAGS_BITS = 4;
 localparam MEM_RQ_BITS = 1;
 localparam COND_PASS_BITS = 1;
 
+
+
 localparam TOTAL_PIPELINE_SV_BITS = INS_BITS + NOP_BITS + PC_BITS + IMM_BITS + HAZ_REG_BITS + HAZ_FLAG_BITS + FLAGS_BITS + MEM_RQ_BITS + COND_PASS_BITS;
 
 
@@ -159,6 +163,8 @@ reg [ADDRESS_BITS - 3 : 0] pc_r;
 reg [ADDRESS_BITS - 3 : 0] prev_pc_r;
 
 reg [IMM_BITS - 1 : 0] imm_r;
+
+assign imm_reg = imm_r;
 
 reg halt_request_lat_r;
 
@@ -212,6 +218,7 @@ reg [3:0] state_r;
  * for use by other perhiperals 
  */
 assign instruction_request = (state_r != st_halt);
+assign instruction_address = pc_r;
 
 assign pipeline_stage_0 = pip0[INS_MSB : INS_LSB];
 assign pipeline_stage_1 = pip1[INS_MSB : INS_LSB];
@@ -400,7 +407,7 @@ begin
 	pip0[IMM_MSB : IMM_LSB] 	<= 24'h000000;
 	pip0[HAZ_REG_MSB : HAZ_REG_LSB] <= 8'h00;
 	pip0[HAZ_FLAG_BIT] 		<= 1'b0;
-	pip0[FLAGS_MSB : FLAGS_LSB]	<= { FLAG_BITS {1'b0}}; 
+	pip0[FLAGS_MSB : FLAGS_LSB]	<= { FLAGS_BITS {1'b0}}; 
 	pip0[MEM_RQ_BIT]		<= 1'b0;
 	pip0[COND_PASS_BIT] 		<= 1'b0;
 
@@ -432,12 +439,12 @@ begin
 		default: begin
 			pip1[PC_MSB : INS_LSB] 		<= pip0[PC_MSB : INS_LSB];
 			pip1[IMM_MSB : IMM_LSB] 	<= imm_r;
-			pip1[HAZ_REG_MSB : HAZ_REG_LSB] <= hazard_reg_0;
-			pip1[HAZ_FLAG_BIT] 		<= modifies_flags_0;
+			pip1[HAZ_REG_MSB : HAZ_REG_LSB] <= hazard_reg0;
+			pip1[HAZ_FLAG_BIT] 		<= modifies_flags0;
 		end
 	endcase
 
-	pip1[FLAGS_MSB : FLAGS_LSB]	<= { FLAG_BITS {1'b0}}; 
+	pip1[FLAGS_MSB : FLAGS_LSB]	<= { FLAGS_BITS {1'b0}}; 
 	pip1[MEM_RQ_BIT]		<= 1'b0;
 	pip1[COND_PASS_BIT] 		<= 1'b0;
 
@@ -467,10 +474,10 @@ always @(posedge CLK)
 begin
 
 	pip2[HAZ_FLAG_BIT : INS_LSB] 	<= pip1[HAZ_FLAG_BIT : INS_LSB];
-	pip2[FLAGS_C]			<= C_in;
-	pip2[FLAGS_Z]			<= Z_in;
-	pip2[FLAGS_S]			<= S_in;
-	pip2[FLAGS_V]			<= V_in;
+	pip2[FLAG_C]			<= C_in;
+	pip2[FLAG_Z]			<= Z_in;
+	pip2[FLAG_S]			<= S_in;
+	pip2[FLAG_V]			<= V_in;
 	pip2[MEM_RQ_BIT]		<= 1'b0;
 	pip2[COND_PASS_BIT] 		<= 1'b0;
 
@@ -551,7 +558,7 @@ begin
 	end
 	else begin
 		// In mem except1, reload the imm reg from the faulting instruction
-		if (state == st_mem_except1)
+		if (state_r == st_mem_except1)
 			imm_r <= pip5[IMM_MSB:IMM_LSB];
 		// Else if we have an iret, reload the imm reg
 		else if (pip1[INS_MSB:INS_LSB] == IRET_INSTRUCTION)

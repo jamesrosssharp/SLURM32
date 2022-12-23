@@ -5,9 +5,9 @@
  */
 
 module unsigned_mult (
-	input [15:0] A,
-	input [15:0] B,
-	output [31:0] out
+	input [31:0] A,
+	input [31:0] B,
+	output [63:0] out
 );
 
 assign out = A*B;

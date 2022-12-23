@@ -23,12 +23,12 @@ module slurm32_cpu_execute #(parameter REGISTER_BITS = 4, BITS = 32, ADDRESS_BIT
 	input [BITS - 1:0] regB,
 
 	/* immediate register */
-	input [BITS - 1:0] imm_reg,
+	input [23:0] imm_reg,
 
 	/* memory op */
 	output load_memory,
 	output store_memory,
-	output [ADDRESS_BITS - 1:0] load_store_address, // -- this should probably be an aligned address
+	output [ADDRESS_BITS - 3:0] load_store_address, // -- this should probably be an aligned address
 	output [BITS - 1:0] memory_out,
 	output [3:0] memory_mask,
 
