@@ -14,8 +14,8 @@ module slurm32_cpu_hazard #(parameter BITS = 32, REGISTER_BITS = 8)
         input [REGISTER_BITS - 1:0] regA_sel0,          /* registers that pipeline0 instruction will read from */
         input [REGISTER_BITS - 1:0] regB_sel0,
 
-        output reg[REGISTER_BITS - 1:0] hazard_reg0,    /*  export hazard computation, it will move with pipeline in pipeline module */
-        output reg modifies_flags0,                     /*  export flag hazard conditions */
+        output reg[REGISTER_BITS - 1:0] hazard_reg0 = {REGISTER_BITS{1'b0}},    /*  export hazard computation, it will move with pipeline in pipeline module */
+        output reg modifies_flags0 = 1'b0,                     /*  export flag hazard conditions */
 
         input [REGISTER_BITS - 1:0] hazard_reg1,        /* import pipelined hazards */
         input [REGISTER_BITS - 1:0] hazard_reg2,

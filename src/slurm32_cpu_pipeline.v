@@ -149,20 +149,20 @@ localparam FLAG_V = 99;
 localparam MEM_RQ_BIT = 100;
 localparam COND_PASS_BIT = 101;
 
-reg [TOTAL_PIPELINE_SV_BITS - 1:0] pip0;	// Fetch
-reg [TOTAL_PIPELINE_SV_BITS - 1:0] pip1;	// Decode
-reg [TOTAL_PIPELINE_SV_BITS - 1:0] pip2;	// Execute
-reg [TOTAL_PIPELINE_SV_BITS - 1:0] pip3;	// Mem req.
-reg [TOTAL_PIPELINE_SV_BITS - 1:0] pip4;	// Write back
-reg [TOTAL_PIPELINE_SV_BITS - 1:0] pip5;	// Final
+reg [TOTAL_PIPELINE_SV_BITS - 1:0] pip0 = {TOTAL_PIPELINE_SV_BITS{1'b0}};	// Fetch
+reg [TOTAL_PIPELINE_SV_BITS - 1:0] pip1 = {TOTAL_PIPELINE_SV_BITS{1'b0}};	// Decode
+reg [TOTAL_PIPELINE_SV_BITS - 1:0] pip2 = {TOTAL_PIPELINE_SV_BITS{1'b0}};	// Execute
+reg [TOTAL_PIPELINE_SV_BITS - 1:0] pip3 = {TOTAL_PIPELINE_SV_BITS{1'b0}};	// Mem req.
+reg [TOTAL_PIPELINE_SV_BITS - 1:0] pip4 = {TOTAL_PIPELINE_SV_BITS{1'b0}};	// Write back
+reg [TOTAL_PIPELINE_SV_BITS - 1:0] pip5 = {TOTAL_PIPELINE_SV_BITS{1'b0}};	// Final
 
 
 reg interrupt_flag_r = 1'b1;
 
-reg [ADDRESS_BITS - 3 : 0] pc_r;
-reg [ADDRESS_BITS - 3 : 0] prev_pc_r;
+reg [ADDRESS_BITS - 3 : 0] pc_r = {(ADDRESS_BITS - 2){1'b0}};
+reg [ADDRESS_BITS - 3 : 0] prev_pc_r = {(ADDRESS_BITS - 2){1'b0}};
 
-reg [IMM_BITS - 1 : 0] imm_r;
+reg [IMM_BITS - 1 : 0] imm_r = {IMM_BITS{1'b0}};
 
 assign imm_reg = imm_r;
 
@@ -204,6 +204,7 @@ localparam st_ins_stall1 = 4'd7;
 localparam st_ins_stall2 = 4'd8;
 localparam st_mem_except1 = 4'd9;
 localparam st_mem_except2 = 4'd10;
+localparam st_pre_execute = 4'd11;
 
 reg [3:0] state_r;
 
@@ -258,8 +259,11 @@ begin
 
 		case (state_r)
 			st_reset: begin
-				state_r <= st_execute;
+				state_r <= st_pre_execute;
 			end
+			st_pre_execute: begin
+				state_r <= st_execute;
+			end	
 			st_halt: begin
 
 				/*
@@ -362,6 +366,10 @@ begin
 			pc_r <= {(ADDRESS_BITS - 3){1'b0}};
 			prev_pc_r <= {(ADDRESS_BITS - 3){1'b0}};
 		end
+		st_pre_execute: begin
+			pc_r <= pc_r + 1;
+			prev_pc_r <= pc_r;
+		end
 		st_halt:	
 			if (load_pc_request == 1'b1) begin
 				pc_r <= load_pc_address[ADDRESS_BITS - 1 : 2];
@@ -413,7 +421,7 @@ begin
 
 	// We nop out pip0 in every state except execute
 	case (state_r)
-		st_reset, st_halt, st_stall1, st_stall2, st_stall3, st_ins_stall1, st_mem_except1, st_mem_except2, st_interrupt, st_ins_stall2:
+		st_reset, st_pre_execute, st_halt, st_stall1, st_stall2, st_stall3, st_ins_stall1, st_mem_except1, st_mem_except2, st_interrupt, st_ins_stall2:
 			pip0[NOP_BIT] <= 1'b1;
 		default:
 			if (load_pc_request)
@@ -450,7 +458,7 @@ begin
 
 	// We nop out pip1 in st_reset, st_halt, st_interrupt, st_mem_except1 and st_ins_stall1 (because instruction coming in from pip0 is invalid if cache missed)
 	case (state_r)
-		st_reset, st_halt, st_interrupt, st_mem_except1, st_ins_stall1:
+		st_reset, st_pre_execute, st_halt, st_interrupt, st_mem_except1, st_ins_stall1:
 			pip1[NOP_BIT] <= 1'b1;
 		/* preserve nop bit in stall states unless branch taken */
 		st_stall1, st_stall2, st_stall3: 
@@ -483,7 +491,7 @@ begin
 
 	// Nop out instruction in st_reset, st_halt, st_interrupt, st_mem_except1, st_stall{x}
 	case (state_r)
-		st_reset, st_halt, st_interrupt, st_mem_except1, st_stall1, st_stall2, st_stall3:
+		st_reset, st_pre_execute, st_halt, st_interrupt, st_mem_except1, st_stall1, st_stall2, st_stall3:
 			pip2[NOP_BIT] <= 1'b1;
 		default:
 			pip2[NOP_BIT] <= pip1[NOP_BIT];
@@ -505,7 +513,7 @@ begin
 
 	// Nop out instruction in st_reset, st_interrupt, st_mem_except1
 	case (state_r)
-		st_reset, st_interrupt, st_mem_except1:
+		st_reset, st_pre_execute, st_interrupt, st_mem_except1:
 			pip3[NOP_BIT] <= 1'b1;
 		default:
 			pip3[NOP_BIT] <= pip2[NOP_BIT];
@@ -524,7 +532,7 @@ begin
 
 	// Nop out instruction in st_reset, st_interrupt, st_mem_except1
 	case (state_r)
-		st_reset, st_interrupt, st_mem_except1:
+		st_reset, st_pre_execute, st_interrupt, st_mem_except1:
 			pip4[NOP_BIT] <= 1'b1;
 		default:
 			pip4[NOP_BIT] <= pip3[NOP_BIT];

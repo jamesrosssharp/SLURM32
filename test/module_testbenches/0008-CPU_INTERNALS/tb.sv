@@ -13,8 +13,8 @@ end
 wire instruction_request;
 reg instruction_valid = 1'b0;
 wire [29:0] instruction_address;
-reg [31:0] instruction_in;
-reg [29:0] instruction_address_in;
+reg [31:0] instruction_in = 32'd0;
+reg [29:0] instruction_address_in = 30'd0;
 
 wire [31:0] pipeline_stage_0;
 wire [31:0] pipeline_stage_1;
@@ -46,7 +46,7 @@ reg nop_stage4;
 
 reg load_interrupt_return_address;
 
-reg cond_pass;
+wire cond_pass_in;
 
 reg [7:0] hazard_reg1;
 reg [7:0] hazard_reg2;
@@ -78,14 +78,15 @@ wire S_out;
 
 wire flags_load;
 
-wire is_mem_request;
-wire cond_pass_in;
 
 wire load_return_address;
 
 wire cond_pass_stage4;
 
 wire [23:0] imm_reg;
+
+wire load_memory;
+wire store_memory;
 
 slurm32_cpu_pipeline pip0 (
 	CLK,
@@ -148,7 +149,7 @@ slurm32_cpu_pipeline pip0 (
 	interrupt_flag_set,
 
 	memory_request_successful,
-	is_mem_request,
+	load_memory || store_memory,
 	cond_pass_in,
 
 	load_return_address,
@@ -251,6 +252,7 @@ slurm32_cpu_execute exec0
 	RSTb,
 
 	pipeline_stage_2,		/* instruction in pipeline slot 2 */
+	nop_stage_2,
 
 	/* flags (for branches) */
 
